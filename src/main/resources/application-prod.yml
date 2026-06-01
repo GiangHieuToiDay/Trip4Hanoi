@@ -15,7 +15,7 @@ spring:
 
   data:
     redis:
-      host: ${REDIS_HOST:redis}
+      host: ${REDIS_HOST:red-d8eorareo5us73cnm1i0}
       port: ${REDIS_PORT:6379}
 
   mail:
