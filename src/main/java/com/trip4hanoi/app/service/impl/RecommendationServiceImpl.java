@@ -101,7 +101,7 @@ public class RecommendationServiceImpl implements RecommendationService {
         }
 
         // Ưu tiên quán có nhiều view
-        score += (place.getViewCount() * 0.01);
+        score += (place.getViewCount() != null ? place.getViewCount() : 0) * 0.01;
 
         // [MỚI] Ưu tiên cực cao nếu có Sự kiện đang diễn ra
         if (placeIdsWithEvents.contains(place.getId())) {

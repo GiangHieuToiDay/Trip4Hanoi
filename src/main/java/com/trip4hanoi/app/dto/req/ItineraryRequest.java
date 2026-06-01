@@ -9,13 +9,10 @@ import lombok.*;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@CrossOrigin(origins = "http://localhost:5173")
 public class ItineraryRequest {
 
     private Long id;
