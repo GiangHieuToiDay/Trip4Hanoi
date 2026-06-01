@@ -1,0 +1,115 @@
+package com.trip4hanoi.app.service.impl;
+
+import com.trip4hanoi.app.dto.req.ReviewRequest;
+import com.trip4hanoi.app.dto.res.PageResponse;
+import com.trip4hanoi.app.dto.res.ReviewResponse;
+import com.trip4hanoi.app.entity.Place;
+import com.trip4hanoi.app.entity.Review;
+import com.trip4hanoi.app.entity.User;
+import com.trip4hanoi.app.exception.AppException;
+import com.trip4hanoi.app.exception.ErrorCode;
+import com.trip4hanoi.app.mapper.ReviewMapper;
+import com.trip4hanoi.app.repository.PlaceRepository;
+import com.trip4hanoi.app.repository.ReviewRepository;
+import com.trip4hanoi.app.repository.UserRepository;
+import com.trip4hanoi.app.service.ReviewService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class ReviewServiceImpl implements ReviewService {
+
+    private final ReviewRepository reviewRepository;
+    private final PlaceRepository placeRepository;
+    private final UserRepository userRepository;
+    private final ReviewMapper reviewMapper;
+    private final com.trip4hanoi.app.service.SmartNotificationEngine smartNotificationEngine;
+
+    @Override
+    @Transactional
+    public ReviewResponse createReview(ReviewRequest request, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        
+        Place place = placeRepository.findById(request.getPlaceId())
+                .orElseThrow(() -> new AppException(ErrorCode.PLACE_NOT_FOUND));
+
+        Review review = reviewMapper.toReview(request);
+        review.setUser(user);
+        review.setPlace(place);
+
+        Review saved = reviewRepository.save(review);
+        
+        // --- SMART NOTIFICATION TRIGGER ---
+        // Thông báo cho những người khác cũng từng đánh giá địa điểm này
+        smartNotificationEngine.notifyNewReview(saved);
+
+        return reviewMapper.toReviewResponse(saved);
+    }
+
+    @Override
+    public List<ReviewResponse> getReviewsByPlace(Long placeId) {
+        return reviewRepository.findByPlaceId(placeId).stream()
+                .map(reviewMapper::toReviewResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReviewResponse> getMyReviews() {
+        Long userId = getCurrentUserId();
+        return reviewRepository.findByUserId(userId).stream()
+                .map(reviewMapper::toReviewResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void deleteReview(Long reviewId) {
+        reviewRepository.deleteById(reviewId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<ReviewResponse> getAllReviews(int page, int size, Integer rating, String keyword) {
+        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+        
+        Page<Review> reviewPage = reviewRepository.findAll(pageable);
+
+        List<ReviewResponse> content = reviewPage.getContent().stream()
+                .map(reviewMapper::toReviewResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.<ReviewResponse>builder()
+                .pageNumber(page)
+                .pageSize(size)
+                .totalElements(reviewPage.getTotalElements())
+                .totalPages(reviewPage.getTotalPages())
+                .data(content)
+                .build();
+    }
+
+    private Long getCurrentUserId() {
+        var context = SecurityContextHolder.getContext();
+        var authentication = context.getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
+            Object idClaim = jwt.getClaims().get("id");
+            if (idClaim instanceof Number n) {
+                return n.longValue();
+            }
+        }
+        return 0L;
+    }
+}
