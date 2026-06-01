@@ -5,9 +5,11 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 @Configuration
 public class FirebaseConfig {
@@ -18,8 +20,8 @@ public class FirebaseConfig {
             return;
         }
 
-        FileInputStream serviceAccount =
-                new FileInputStream("src/main/resources/trip4hanoi-1a2ba-firebase-adminsdk-fbsvc-29ccb30801.json");
+        ClassPathResource resource = new ClassPathResource("trip4hanoi-1a2ba-firebase-adminsdk-fbsvc-29ccb30801.json");
+        InputStream serviceAccount = resource.getInputStream();
 
         FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(GoogleCredentials.fromStream(serviceAccount))
