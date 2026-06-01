@@ -8,9 +8,15 @@ COPY pom.xml .
 # Thêm -B để log gọn hơn
 RUN mvn -B dependency:go-offline
 
-# Copy source code and build the JAR
+# Copy source code
 COPY src ./src
-# Thêm -B để log gọn hơn
+
+# --- CHÈN ĐOẠN NÀY VÀO ĐÂY ĐỂ ĐÁNH TRÁO FILE FIREBASE KHI BUILD ---
+ARG FIREBASE_CONFIG_JSON
+RUN echo "$FIREBASE_CONFIG_JSON" > src/main/resources/trip4hanoi-1a2ba-firebase-adminsdk-fbsvc-29ccb30801.json
+# -----------------------------------------------------------------
+
+# Build the JAR (Sau khi đã có file json trong thư mục resources)
 RUN mvn -B package -DskipTests
 
 # -------- Stage 2: Run the application --------
